@@ -159,9 +159,8 @@ if __name__ == '__main__':
         next_time = time.time()
         killer = GracefulExit()
         while True:
-            if killer.kill_now.wait(max(0, next_time - time.time())):
+            if killer.kill_now.wait(delay):
                 break
             updateIPs(json.load(args.config))
-            next_time += (time.time() - next_time) // delay * delay + delay
     else:
         updateIPs(json.load(args.config))
