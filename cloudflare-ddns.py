@@ -57,17 +57,17 @@ def getIPs():
             shown_ipv6_warning = True
             print("😨 Warning: IPv6 not detected")
         deleteEntries("AAAA")
-    ips = []
+    ips = {}
     if(a is not None):
-        ips.append({
+        ips["ipv4"] = {
             "type": "A",
             "ip": a
-        })
+        }
     if(aaaa is not None):
-        ips.append({
+        ips["ipv6"] = {
             "type": "AAAA",
             "ip": aaaa
-        })
+        }
     return ips
 
 def commitRecord(ip, config):
@@ -143,8 +143,8 @@ def cf_api(endpoint, method, config, headers={}, data=False):
 
     return response.json()
 
-def updateIPs(config):
-    for ip in getIPs():
+def updateIPs(ips, config):
+    for ip in ips.values():
         commitRecord(ip, config)
 
 if __name__ == '__main__':
@@ -153,14 +153,19 @@ if __name__ == '__main__':
     parser.add_argument("--config-path", dest="config", type=open, default=os.path.join(PATH, "config.json"))
     args = parser.parse_args()
 
+    config = json.load(args.config)
+
     if args.repeat:
-        delay = 15*60
+        delay = 60
         print("⏲️ Updating IPv4 (A) & IPv6 (AAAA) records every 15 minutes")
         next_time = time.time()
         killer = GracefulExit()
+        prev_ips = None
         while True:
             if killer.kill_now.wait(delay):
                 break
-            updateIPs(json.load(args.config))
+            ips = getIPs()
+            if ips != prev_ips:
+                updateIPs(ips, config)
     else:
-        updateIPs(json.load(args.config))
+        updateIPs(getIPs, config)
