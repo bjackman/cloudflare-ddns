@@ -1,4 +1,4 @@
-import argparse, requests, json, sys, signal, os, time
+import argparse, requests, json, sys, signal, os, threading, time
 
 PATH = os.getcwd() + "/"
 version = float(str(sys.version_info[0]) + "." + str(sys.version_info[1]))
@@ -9,19 +9,14 @@ if(version < 3.5):
     raise Exception("This script requires Python 3.5+")
 
 class GracefulExit:
-  kill_now = False
-  signals = {
-    signal.SIGINT: 'SIGINT',
-    signal.SIGTERM: 'SIGTERM'
-  }
-
   def __init__(self):
+    self.kill_now = threading.Event()
     signal.signal(signal.SIGINT, self.exit_gracefully)
     signal.signal(signal.SIGTERM, self.exit_gracefully)
 
   def exit_gracefully(self, signum, frame):
     print("🛑 Stopping main thread...")
-    self.kill_now = True
+    self.kill_now.set()
 
 def deleteEntries(type):
     # Helper function for deleting A or AAAA records
@@ -163,10 +158,10 @@ if __name__ == '__main__':
         print("⏲️ Updating IPv4 (A) & IPv6 (AAAA) records every 15 minutes")
         next_time = time.time()
         killer = GracefulExit()
-        while not killer.kill_now:
-            time.sleep(max(0, next_time - time.time()))
+        while True:
+            if killer.kill_now.wait(max(0, next_time - time.time())):
+                break
             updateIPs(json.load(args.config))
             next_time += (time.time() - next_time) // delay * delay + delay
     else:
         updateIPs(json.load(args.config))
-
